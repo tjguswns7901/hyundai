@@ -1,5 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.ksp)
+}
+
+val androidCarApiJar = androidComponents.sdkComponents.sdkDirectory.map { sdkDirectory ->
+    sdkDirectory.file("platforms/android-37.0/optional/android.car.jar")
 }
 
 android {
@@ -33,9 +38,15 @@ android {
 }
 
 dependencies {
+    implementation(project(":core"))
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)
+    implementation(libs.pleos.vehicle.sdk)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    compileOnly(files(androidCarApiJar))
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

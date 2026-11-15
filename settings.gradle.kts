@@ -19,8 +19,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://nexus-playground.pleos.ai/repository/maven-releases/")
     }
 }
 
 rootProject.name = "My Application"
 include(":app")
+include(":core")
