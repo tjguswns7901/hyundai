@@ -124,7 +124,16 @@ class Collector(
                         quality = quality or Quality.missing(channel)
                         return null
                     }
-                    if (elapsed - reading.timeMs > staleAfterMs) quality = quality or Quality.stale(channel)
+                    val channelStaleAfterMs = when (channel) {
+                        // Gear selection is stateful and usually reports only when the driver shifts.
+                        Channel.GEAR -> null
+                        // NaviHelper reports the road speed limit once per second.
+                        Channel.SPEED_LIMIT -> 2_500L
+                        else -> staleAfterMs
+                    }
+                    if (channelStaleAfterMs != null && elapsed - reading.timeMs > channelStaleAfterMs) {
+                        quality = quality or Quality.stale(channel)
+                    }
                     return reading.value
                 }
                 out.emit(Sample(

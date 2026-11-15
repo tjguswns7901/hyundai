@@ -43,8 +43,11 @@ class DrivingCollectorService : Service() {
         startAsForeground()
         val source = when (intent?.action) {
             ACTION_START_VEHICLE -> {
-                SensorDebugLog.log("차량 에뮬레이터 수집 시작")
-                CarPropertySensorSource(applicationContext)
+                SensorDebugLog.log("차량 에뮬레이터 + Navi 제한속도 수집 시작")
+                CombinedSensorSource(
+                    CarPropertySensorSource(applicationContext),
+                    NaviSpeedLimitSensorSource(applicationContext),
+                )
             }
             ACTION_START_SCENARIO -> {
                 val scenario = intent.getStringExtra(EXTRA_SCENARIO)
