@@ -146,11 +146,11 @@ class OnGilEngine(val cfg: OnGilConfig = OnGilConfig()) {
             out.add(Event(t, EventType.HARD_BRAKE, Level.UNDETERMINED, 0, "급제동 감지, 제한속도 정보 없음 → 판단 불가"))
             return
         }
-        val thr = limit - cfg.stopLimitMarginKmh
-        val ok = if (cfg.stopLookbackSec <= 0.0) v0 * 3.6 >= thr else {
+        val thr = limit + cfg.stopOverLimitKmh
+        val ok = if (cfg.stopLookbackSec <= 0.0) v0 * 3.6 > thr else {
             var sum = 0.0; var prev = Double.NaN
             for ((ht, hv, hl) in speedHist) {
-                if (!prev.isNaN() && hl != null && hv * 3.6 >= hl - cfg.stopLimitMarginKmh) sum += ht - prev
+                if (!prev.isNaN() && hl != null && hv * 3.6 > hl + cfg.stopOverLimitKmh) sum += ht - prev
                 prev = ht
             }
             sum >= cfg.stopLookbackNeedSec
@@ -207,8 +207,9 @@ class OnGilEngine(val cfg: OnGilConfig = OnGilConfig()) {
         laneTimes.add(t)
         if (laneTimes.size >= cfg.laneCountForPenalty) {
             val p = if (laneWeightN == 0) cfg.laneBasePenalty else (lastLanePenalty * cfg.laneWeight).roundToInt()
-            laneWeightN++; lastLanePenalty = p
-            penalize(t, EventType.LANE_CHANGE_NO_SIGNAL, p, "깜빡이 없는 차선 변경 ${laneTimes.size}회(20분 내)", out)
+            if (penalize(t, EventType.LANE_CHANGE_NO_SIGNAL, p, "깜빡이 없는 차선 변경 ${laneTimes.size}회(20분 내)", out)) {
+                laneWeightN++; lastLanePenalty = p            // 실제로 감점됐을 때만 가중치 진행
+            }
         } else warn(t, EventType.LANE_CHANGE_NO_SIGNAL, "깜빡이 없는 차선 변경 추정 (${laneTimes.size}/${cfg.laneCountForPenalty})", out)
     }
 
@@ -241,12 +242,21 @@ class OnGilEngine(val cfg: OnGilConfig = OnGilConfig()) {
         out.add(Event(t, type, Level.WARNING, 0, msg))
     }
 
-    private fun penalize(t: Double, type: EventType, points: Int, msg: String, out: MutableList<Event>) {
+    private val lastPenaltyAt = HashMap<EventType, Double>()
+
+    private fun penalize(t: Double, type: EventType, points: Int, msg: String, out: MutableList<Event>): Boolean {
+        val last = lastPenaltyAt[type]
+        if (last != null && t - last < cfg.sameReasonCooldownSec) {   // 쿨타임 중 감점은 버림 [MEET 11/14]
+            out.add(Event(t, type, Level.OBSERVED, 0, "$msg → 쿨타임 중이라 감점 생략"))
+            return false
+        }
+        lastPenaltyAt[type] = t
         val before = score
         score = max(cfg.scoreMin, score - points)
         growthMin = 0.0                                        // 증가량 초기화 [MEET]
         pausedUntil = max(pausedUntil, t + cfg.penaltyPauseSec)
         out.add(Event(t, type, Level.PENALTY, points, "$msg (-${points}점, 실제 ${(before - score).roundToInt()}점 하락)"))
+        return true
     }
 
     private fun updateScore(t: Double, dt: Double, s: Sample, driving: Boolean, v: Double?) {

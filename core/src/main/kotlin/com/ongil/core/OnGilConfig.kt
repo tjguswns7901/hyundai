@@ -23,8 +23,9 @@ data class OnGilConfig(
     val hardBrakeMps2: Double = 15.0 / 3.6,      // [MEET] 15 km/h/s 이상 감속이면 급제동
     val hardBrakeMinSec: Double = 0.3,           // [TEMP]
     val hardBrakeRearmMps2: Double = 2.0,        // [TEMP] 감속이 이보다 약해져야 다음 건
+    val sameReasonCooldownSec: Double = 30.0,    // [MEET 11/14] 같은 사유 감점은 30초 쿨타임(쿨타임 중 감점은 버림)
     val hardBrakePenalty: Int = 30,              // [MEET] 급정거 감점(제한속도 조건 충족 시)
-    val stopLimitMarginKmh: Double = 0.0,        // [MEET] 제한속도 이상(0)부터 조건 충족
+    val stopOverLimitKmh: Double = 10.0,         // [MEET 11/14] 제한속도 + 이 값 초과로 달리던 중이어야 급정거 감점
     val stopLookbackSec: Double = 0.0,           // [TEMP] 0=급제동 직전 속도로만 판정. 900으로 하면 15분 되돌아보기
     val stopLookbackNeedSec: Double = 300.0,     // 되돌아보기 사용 시: 그 중 5분 이상 제한속도 이상이어야 함
 

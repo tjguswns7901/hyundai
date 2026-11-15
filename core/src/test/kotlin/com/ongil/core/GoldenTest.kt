@@ -63,7 +63,7 @@ fun main() {
         check("4c 주차: 점수 0 유지", p.e.score == 0.0, "${p.e.score}")
     }
     run { // 5 급제동/급정거
-        for ((lim, expect) in listOf<Pair<Double?, String>>(60.0 to "PEN", 80.0 to "OBS", null to "UND")) {
+        for ((lim, expect) in listOf<Pair<Double?, String>>(40.0 to "PEN", 60.0 to "OBS", null to "UND")) {
             val s = Sim(); s.limit = lim; s.cruise(10.0, V); s.ramp(2.0, V, -5.0); s.cruise(5.0, V - 10.0)
             val ok = when (expect) {
                 "PEN" -> s.ev.any { it.type == EventType.SUDDEN_STOP && it.level == Level.PENALTY && it.penalty == 30 }
@@ -72,8 +72,14 @@ fun main() {
             }
             check("5 급제동 제한속도=$lim → $expect", ok, s.ev.toString())
         }
-        val s = Sim(); s.limit = 60.0; s.cruise(5.0, V); s.ramp(4.0, V, -2.0); s.cruise(3.0, V - 8.0)
+        val s = Sim(); s.limit = 40.0; s.cruise(5.0, V); s.ramp(4.0, V, -2.0); s.cruise(3.0, V - 8.0)
         check("5d 부드러운 감속(7km/h/s): 이벤트 없음", s.ev.isEmpty(), s.ev.toString())
+    }
+    run { // 5e 쿨타임: 같은 사유 감점은 30초 안에 반복되면 버림
+        val s = Sim(); s.limit = 40.0; s.cruise(10.0, V); s.ramp(2.0, V, -5.0); s.cruise(3.0, V - 10.0)
+        s.ramp(2.0, V - 10.0 + 0.0, 0.0); s.ramp(2.0, V - 10.0, 3.0); s.cruise(3.0, V - 4.0); s.ramp(2.0, V - 4.0, -5.0); s.cruise(3.0, V - 14.0)
+        val pens = s.ev.count { it.level == Level.PENALTY && it.type == EventType.SUDDEN_STOP }
+        check("5e 30초 안 재급정거: 감점 1회만(쿨타임)", pens == 1, s.ev.toString())
     }
     run { // 6 차선 변경
         val s = Sim(); s.cruise(5.0, 20.0); s.laneChange(20.0, null)
@@ -89,7 +95,7 @@ fun main() {
         val l = Sim(); l.cruise(5.0, 8.0); l.steer = 10.0; l.cruise(3.0, 8.0); l.steer = 0.0; l.cruise(3.0, 8.0)
         check("6f 좌회전(10°): 차선변경 아님", l.ev.none { it.type == EventType.LANE_CHANGE_NO_SIGNAL }, l.ev.toString())
         val m = Sim(); m.cruise(5.0, 20.0)
-        repeat(5) { m.laneChange(20.0, null); m.cruise(25.0, 20.0) }
+        repeat(5) { m.laneChange(20.0, null); m.cruise(32.0, 20.0) }
         val pens = m.ev.filter { it.level == Level.PENALTY }.map { it.penalty }
         check("6g 3·4·5번째: 감점 45, 54, 65", pens == listOf(45, 54, 65), pens.toString())
         val w = Sim(); w.cruise(5.0, 20.0)
@@ -109,7 +115,7 @@ fun main() {
     run { // 8 점수
         val s = Sim(); s.cruise(600.0, V)
         check("8a 10분 안전운전: 약 20점", s.e.score in 19.0..21.0, "${s.e.score}")
-        val a = Sim(); a.cruise(300.0, V); val before = a.e.score
+        val a = Sim(); a.limit = 40.0; a.cruise(300.0, V); val before = a.e.score
         a.ramp(2.0, V, -5.0); a.cruise(2.0, V - 10.0)
         check("8b 급정거: 30점 감점 후 하한 0", a.e.score == 0.0 || a.e.score < before, "${a.e.score}")
         val w = Sim(); w.cruise(60.0, 10.0); w.ramp(2.0, 10.0, 3.0); w.cruise(2.0, 16.0)
